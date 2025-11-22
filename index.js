@@ -24,6 +24,8 @@ app.use("/api/ventas", require("./routes/ventaRouter"));         // Ventas
 app.use("/api/dashboard", require("./routes/dashboardRouter"));  // Dashboard
 app.use("/api/profile", require("./routes/profileRouter"));      // Perfil
 app.use("/api/productos", require("./routes/productoRouter"));   // Productos
+app.use("/api/telegram", require("./routes/telegramRouter"));    // 👈 NUEVO: Para Telegram
+app.use("/api/carrito", require("./routes/carritoRouter"));      // 👈 NUEVO: Carrito temporal
 
 // =====================
 // Ruta raíz (ping del servidor)
