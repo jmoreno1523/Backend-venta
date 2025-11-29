@@ -1,3 +1,4 @@
+// controllers/carritoController.js
 const Carrito = require("../models/Carrito");
 const Producto = require("../models/Producto");
 
@@ -6,15 +7,17 @@ exports.agregarAlCarrito = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
 
-    // Validar que vengan los datos necesarios
+    console.log("Datos recibidos:", { userId, productoId }); // Para debug
+
+    // Validaciones
     if (!userId || !productoId) {
       return res.status(400).json({ 
         success: false, 
-        message: "Faltan datos: userId y productoId son requeridos" 
+        message: "Faltan datos requeridos: userId y productoId" 
       });
     }
 
-    // Buscar producto
+    // Verificar que el producto existe
     const producto = await Producto.findById(productoId);
     if (!producto) {
       return res.status(404).json({ 
@@ -23,9 +26,11 @@ exports.agregarAlCarrito = async (req, res) => {
       });
     }
 
-    // Buscar o crear carrito
+    // Buscar carrito existente
     let carrito = await Carrito.findOne({ userId });
+
     if (!carrito) {
+      // Crear nuevo carrito si no existe
       carrito = new Carrito({ 
         userId, 
         productos: [], 
@@ -34,15 +39,15 @@ exports.agregarAlCarrito = async (req, res) => {
     }
 
     // Verificar si el producto ya está en el carrito
-    const productoExistente = carrito.productos.find(
-      p => p.productoId.toString() === productoId
+    const productoExistenteIndex = carrito.productos.findIndex(
+      p => p.productoId && p.productoId.toString() === productoId
     );
 
-    if (productoExistente) {
-      // Si ya existe, incrementar cantidad
-      productoExistente.cantidad += 1;
+    if (productoExistenteIndex !== -1) {
+      // Incrementar cantidad si ya existe
+      carrito.productos[productoExistenteIndex].cantidad += 1;
     } else {
-      // Si no existe, agregar nuevo producto
+      // Agregar nuevo producto
       carrito.productos.push({
         productoId: producto._id,
         nombre: producto.nombre,
@@ -51,9 +56,9 @@ exports.agregarAlCarrito = async (req, res) => {
       });
     }
 
-    // Calcular total CORREGIDO (precio * cantidad)
+    // Calcular total (precio * cantidad)
     carrito.total = carrito.productos.reduce(
-      (sum, p) => sum + (p.precio * p.cantidad), 
+      (total, producto) => total + (producto.precio * producto.cantidad), 
       0
     );
 
@@ -61,10 +66,12 @@ exports.agregarAlCarrito = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Producto agregado al carrito",
+      message: "Producto agregado al carrito correctamente",
       carrito: {
+        userId: carrito.userId,
         productos: carrito.productos,
-        total: carrito.total
+        total: carrito.total,
+        cantidadTotal: carrito.productos.reduce((sum, p) => sum + p.cantidad, 0)
       }
     });
 
@@ -72,17 +79,16 @@ exports.agregarAlCarrito = async (req, res) => {
     console.error("Error al agregar al carrito:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Error interno del servidor: " + error.message 
+      message: "Error interno del servidor" 
     });
   }
 };
 
-// Ver carrito - CORREGIDO
+// Obtener carrito - CORREGIDO
 exports.obtenerCarrito = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Validar que venga el userId
     if (!userId) {
       return res.status(400).json({ 
         success: false, 
@@ -91,8 +97,8 @@ exports.obtenerCarrito = async (req, res) => {
     }
 
     const carrito = await Carrito.findOne({ userId });
-    
-    if (!carrito) {
+
+    if (!carrito || carrito.productos.length === 0) {
       return res.json({ 
         success: true, 
         productos: [], 
@@ -103,6 +109,7 @@ exports.obtenerCarrito = async (req, res) => {
 
     res.json({
       success: true,
+      userId: carrito.userId,
       productos: carrito.productos,
       total: carrito.total,
       cantidadProductos: carrito.productos.reduce((sum, p) => sum + p.cantidad, 0)
@@ -112,7 +119,7 @@ exports.obtenerCarrito = async (req, res) => {
     console.error("Error al obtener carrito:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Error interno del servidor: " + error.message 
+      message: "Error interno del servidor" 
     });
   }
 };
@@ -131,29 +138,22 @@ exports.limpiarCarrito = async (req, res) => {
 
     const resultado = await Carrito.findOneAndDelete({ userId });
 
-    if (!resultado) {
-      return res.json({ 
-        success: true, 
-        message: "El carrito ya estaba vacío" 
-      });
-    }
-
     res.json({ 
       success: true, 
-      message: "Carrito limpiado correctamente" 
+      message: resultado ? "Carrito limpiado correctamente" : "El carrito ya estaba vacío" 
     });
 
   } catch (error) {
     console.error("Error al limpiar carrito:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Error interno del servidor: " + error.message 
+      message: "Error interno del servidor" 
     });
   }
 };
 
-// Nuevo método: Eliminar producto del carrito
-exports.eliminarDelCarrito = async (req, res) => {
+// Nuevo: Eliminar producto específico del carrito
+exports.eliminarProducto = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
 
@@ -179,7 +179,7 @@ exports.eliminarDelCarrito = async (req, res) => {
 
     // Recalcular total
     carrito.total = carrito.productos.reduce(
-      (sum, p) => sum + (p.precio * p.cantidad), 
+      (total, producto) => total + (producto.precio * producto.cantidad), 
       0
     );
 
@@ -195,10 +195,10 @@ exports.eliminarDelCarrito = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error al eliminar del carrito:", error);
+    console.error("Error al eliminar producto:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Error interno del servidor: " + error.message 
+      message: "Error interno del servidor" 
     });
   }
 };
