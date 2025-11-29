@@ -1,16 +1,27 @@
 const Producto = require("../models/Producto");
-const Venta = require("../models/Venta");
 
-// Guardar carrito temporal para Telegram
+// Almacenamiento temporal en memoria (puedes cambiarlo a Redis después)
 const carritosTemp = new Map(); // { userId: { productos: [], total: 0 } }
 
 exports.agregarAlCarrito = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
     
+    // Validar datos requeridos
+    if (!userId || !productoId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "userId y productoId son requeridos" 
+      });
+    }
+    
+    // Buscar producto en la base de datos
     const producto = await Producto.findById(productoId);
     if (!producto) {
-      return res.status(404).json({ success: false, message: "Producto no encontrado" });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Producto no encontrado" 
+      });
     }
 
     // Inicializar carrito si no existe
@@ -19,24 +30,41 @@ exports.agregarAlCarrito = async (req, res) => {
     }
 
     const carrito = carritosTemp.get(userId);
-    const productoEnCarrito = {
-      productoId: producto._id,
-      nombre: producto.nombre,
-      precio: producto.precio,
-      cantidad: 1
-    };
-
-    carrito.productos.push(productoEnCarrito);
-    carrito.total += producto.precio;
+    
+    // Verificar si el producto ya está en el carrito
+    const productoExistente = carrito.productos.find(p => p.productoId.toString() === productoId);
+    
+    if (productoExistente) {
+      // Si ya existe, aumentar cantidad
+      productoExistente.cantidad += 1;
+    } else {
+      // Si no existe, agregar nuevo producto
+      const productoEnCarrito = {
+        productoId: producto._id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: 1,
+        imagen: producto.imagen
+      };
+      carrito.productos.push(productoEnCarrito);
+    }
+    
+    // Recalcular total
+    carrito.total = carrito.productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
 
     res.json({
       success: true,
       message: "Producto agregado al carrito",
       carrito: carrito.productos,
-      total: carrito.total
+      total: carrito.total,
+      productoAgregado: producto.nombre
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error en agregarAlCarrito:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error interno del servidor" 
+    });
   }
 };
 
@@ -44,15 +72,67 @@ exports.obtenerCarrito = async (req, res) => {
   try {
     const { userId } = req.params;
     
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "userId es requerido" 
+      });
+    }
+    
     const carrito = carritosTemp.get(userId) || { productos: [], total: 0 };
     
     res.json({
       success: true,
       carrito: carrito.productos,
+      total: carrito.total,
+      cantidadProductos: carrito.productos.length
+    });
+  } catch (error) {
+    console.error("Error en obtenerCarrito:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error interno del servidor" 
+    });
+  }
+};
+
+exports.eliminarDelCarrito = async (req, res) => {
+  try {
+    const { userId, productoId } = req.body;
+    
+    if (!userId || !productoId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "userId y productoId son requeridos" 
+      });
+    }
+    
+    const carrito = carritosTemp.get(userId);
+    if (!carrito) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Carrito no encontrado" 
+      });
+    }
+
+    // Filtrar el producto a eliminar
+    carrito.productos = carrito.productos.filter(p => p.productoId.toString() !== productoId);
+    
+    // Recalcular total
+    carrito.total = carrito.productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+
+    res.json({
+      success: true,
+      message: "Producto eliminado del carrito",
+      carrito: carrito.productos,
       total: carrito.total
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error en eliminarDelCarrito:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error interno del servidor" 
+    });
   }
 };
 
@@ -60,48 +140,26 @@ exports.limpiarCarrito = async (req, res) => {
   try {
     const { userId } = req.body;
     
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "userId es requerido" 
+      });
+    }
+    
     if (carritosTemp.has(userId)) {
       carritosTemp.set(userId, { productos: [], total: 0 });
     }
     
-    res.json({ success: true, message: "Carrito limpiado" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-exports.finalizarCompra = async (req, res) => {
-  try {
-    const { userId, usuario, cliente } = req.body;
-    
-    const carrito = carritosTemp.get(userId);
-    if (!carrito || carrito.productos.length === 0) {
-      return res.status(400).json({ success: false, message: "Carrito vacío" });
-    }
-
-    const nuevaVenta = new Venta({
-      usuario: usuario || null,
-      cliente: cliente || "Cliente Telegram",
-      productos: carrito.productos,
-      total: carrito.total,
-      fecha: new Date(),
-    });
-
-    await nuevaVenta.save();
-    
-    // Limpiar carrito después de la compra
-    carritosTemp.set(userId, { productos: [], total: 0 });
-
-    res.json({
-      success: true,
-      message: "Compra realizada exitosamente",
-      venta: {
-        id: nuevaVenta._id,
-        total: nuevaVenta.total,
-        productos: nuevaVenta.productos.length
-      }
+    res.json({ 
+      success: true, 
+      message: "Carrito limpiado exitosamente" 
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error en limpiarCarrito:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error interno del servidor" 
+    });
   }
 };

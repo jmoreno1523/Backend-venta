@@ -8,10 +8,10 @@ router.post("/agregar", carritoController.agregarAlCarrito);
 // Obtener carrito del usuario
 router.get("/:userId", carritoController.obtenerCarrito);
 
-// Limpiar carrito
-router.post("/limpiar", carritoController.limpiarCarrito);
+// Eliminar producto del carrito
+router.post("/eliminar", carritoController.eliminarDelCarrito);
 
-// Finalizar compra
-router.post("/comprar", carritoController.finalizarCompra);
+// Limpiar carrito completo
+router.post("/limpiar", carritoController.limpiarCarrito);
 
 module.exports = router;
