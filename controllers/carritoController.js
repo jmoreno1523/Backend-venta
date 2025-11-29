@@ -6,8 +6,6 @@ exports.agregarAlCarrito = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
 
-    console.log("📥 Datos recibidos:", { userId, productoId });
-
     // Buscar producto
     const producto = await Producto.findById(productoId);
     if (!producto) {
@@ -53,17 +51,13 @@ exports.agregarAlCarrito = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error al agregar al carrito:", error);
     res.status(500).json({ success: false, message: "Error: " + error.message });
   }
 };
 
-// OBTENER CARRITO - AHORA POR BODY
 exports.obtenerCarrito = async (req, res) => {
   try {
-    const { userId } = req.body; // Ahora viene por body, no por params
-
-    console.log("🔍 Buscando carrito para usuario:", userId);
+    const { userId } = req.params; // Ahora de params (URL)
 
     const carrito = await Carrito.findOne({ userId });
     if (!carrito) {
@@ -77,7 +71,6 @@ exports.obtenerCarrito = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error al obtener carrito:", error);
     res.status(500).json({ success: false, message: "Error: " + error.message });
   }
 };
