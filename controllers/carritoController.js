@@ -24,10 +24,8 @@ exports.agregarAlCarrito = async (req, res) => {
     );
 
     if (productoIndex !== -1) {
-      // Si ya existe, incrementar cantidad
       carrito.productos[productoIndex].cantidad += 1;
     } else {
-      // Si no existe, agregar nuevo producto
       carrito.productos.push({
         productoId: producto._id,
         nombre: producto.nombre,
@@ -57,7 +55,7 @@ exports.agregarAlCarrito = async (req, res) => {
 
 exports.obtenerCarrito = async (req, res) => {
   try {
-    const { userId } = req.params; // Ahora de params (URL)
+    const { userId } = req.params;
 
     const carrito = await Carrito.findOne({ userId });
     if (!carrito) {
