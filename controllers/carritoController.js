@@ -1,13 +1,10 @@
+const Carrito = require("../models/Carrito");
 const Producto = require("../models/Producto");
-
-// Almacenamiento temporal en memoria (puedes cambiarlo a Redis después)
-const carritosTemp = new Map(); // { userId: { productos: [], total: 0 } }
 
 exports.agregarAlCarrito = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
     
-    // Validar datos requeridos
     if (!userId || !productoId) {
       return res.status(400).json({ 
         success: false, 
@@ -15,7 +12,6 @@ exports.agregarAlCarrito = async (req, res) => {
       });
     }
     
-    // Buscar producto en la base de datos
     const producto = await Producto.findById(productoId);
     if (!producto) {
       return res.status(404).json({ 
@@ -24,33 +20,36 @@ exports.agregarAlCarrito = async (req, res) => {
       });
     }
 
-    // Inicializar carrito si no existe
-    if (!carritosTemp.has(userId)) {
-      carritosTemp.set(userId, { productos: [], total: 0 });
+    // Buscar o crear carrito
+    let carrito = await Carrito.findOne({ userId });
+    if (!carrito) {
+      carrito = new Carrito({ userId, productos: [], total: 0 });
     }
 
-    const carrito = carritosTemp.get(userId);
-    
     // Verificar si el producto ya está en el carrito
-    const productoExistente = carrito.productos.find(p => p.productoId.toString() === productoId);
+    const productoExistente = carrito.productos.find(
+      p => p.productoId.toString() === productoId
+    );
     
     if (productoExistente) {
-      // Si ya existe, aumentar cantidad
       productoExistente.cantidad += 1;
     } else {
-      // Si no existe, agregar nuevo producto
-      const productoEnCarrito = {
+      carrito.productos.push({
         productoId: producto._id,
         nombre: producto.nombre,
         precio: producto.precio,
         cantidad: 1,
         imagen: producto.imagen
-      };
-      carrito.productos.push(productoEnCarrito);
+      });
     }
     
     // Recalcular total
-    carrito.total = carrito.productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+    carrito.total = carrito.productos.reduce(
+      (sum, p) => sum + (p.precio * p.cantidad), 0
+    );
+    
+    carrito.updatedAt = new Date();
+    await carrito.save();
 
     res.json({
       success: true,
@@ -79,56 +78,17 @@ exports.obtenerCarrito = async (req, res) => {
       });
     }
     
-    const carrito = carritosTemp.get(userId) || { productos: [], total: 0 };
+    const carrito = await Carrito.findOne({ userId });
+    const carritoData = carrito || { productos: [], total: 0 };
     
     res.json({
       success: true,
-      carrito: carrito.productos,
-      total: carrito.total,
-      cantidadProductos: carrito.productos.length
+      carrito: carritoData.productos,
+      total: carritoData.total,
+      cantidadProductos: carritoData.productos.length
     });
   } catch (error) {
     console.error("Error en obtenerCarrito:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error interno del servidor" 
-    });
-  }
-};
-
-exports.eliminarDelCarrito = async (req, res) => {
-  try {
-    const { userId, productoId } = req.body;
-    
-    if (!userId || !productoId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "userId y productoId son requeridos" 
-      });
-    }
-    
-    const carrito = carritosTemp.get(userId);
-    if (!carrito) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Carrito no encontrado" 
-      });
-    }
-
-    // Filtrar el producto a eliminar
-    carrito.productos = carrito.productos.filter(p => p.productoId.toString() !== productoId);
-    
-    // Recalcular total
-    carrito.total = carrito.productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
-
-    res.json({
-      success: true,
-      message: "Producto eliminado del carrito",
-      carrito: carrito.productos,
-      total: carrito.total
-    });
-  } catch (error) {
-    console.error("Error en eliminarDelCarrito:", error);
     res.status(500).json({ 
       success: false, 
       message: "Error interno del servidor" 
@@ -147,9 +107,7 @@ exports.limpiarCarrito = async (req, res) => {
       });
     }
     
-    if (carritosTemp.has(userId)) {
-      carritosTemp.set(userId, { productos: [], total: 0 });
-    }
+    await Carrito.findOneAndDelete({ userId });
     
     res.json({ 
       success: true, 
