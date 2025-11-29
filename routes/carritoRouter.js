@@ -4,7 +4,7 @@ const router = express.Router();
 const carritoController = require("../controllers/carritoController");
 
 router.post("/agregar", carritoController.agregarAlCarrito);
-router.get("/:userId", carritoController.obtenerCarrito);
+router.post("/obtener", carritoController.obtenerCarrito); // Cambiado de GET a POST
 router.post("/limpiar", carritoController.limpiarCarrito);
 
 module.exports = router;

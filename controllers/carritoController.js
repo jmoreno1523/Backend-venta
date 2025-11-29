@@ -6,6 +6,8 @@ exports.agregarAlCarrito = async (req, res) => {
   try {
     const { userId, productoId } = req.body;
 
+    console.log("📥 Datos recibidos:", { userId, productoId });
+
     // Buscar producto
     const producto = await Producto.findById(productoId);
     if (!producto) {
@@ -19,13 +21,15 @@ exports.agregarAlCarrito = async (req, res) => {
     }
 
     // Verificar si el producto ya está en el carrito
-    const productoExistente = carrito.productos.find(
+    const productoIndex = carrito.productos.findIndex(
       p => p.productoId.toString() === productoId
     );
 
-    if (productoExistente) {
-      productoExistente.cantidad += 1;
+    if (productoIndex !== -1) {
+      // Si ya existe, incrementar cantidad
+      carrito.productos[productoIndex].cantidad += 1;
     } else {
+      // Si no existe, agregar nuevo producto
       carrito.productos.push({
         productoId: producto._id,
         nombre: producto.nombre,
@@ -49,13 +53,17 @@ exports.agregarAlCarrito = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("❌ Error al agregar al carrito:", error);
     res.status(500).json({ success: false, message: "Error: " + error.message });
   }
 };
 
+// OBTENER CARRITO - AHORA POR BODY
 exports.obtenerCarrito = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId } = req.body; // Ahora viene por body, no por params
+
+    console.log("🔍 Buscando carrito para usuario:", userId);
 
     const carrito = await Carrito.findOne({ userId });
     if (!carrito) {
@@ -69,6 +77,7 @@ exports.obtenerCarrito = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("❌ Error al obtener carrito:", error);
     res.status(500).json({ success: false, message: "Error: " + error.message });
   }
 };
