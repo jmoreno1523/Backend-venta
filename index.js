@@ -24,7 +24,8 @@ app.use("/api/ventas", require("./routes/ventaRouter"));         // Ventas
 app.use("/api/dashboard", require("./routes/dashboardRouter"));  // Dashboard
 app.use("/api/profile", require("./routes/profileRouter"));      // Perfil
 app.use("/api/productos", require("./routes/productoRouter"));   // Productos
-
+// Agrega esta línea con las otras rutas:
+app.use("/api/carrito", require("./routes/carritoRouter"));
 
 // =====================
 // Ruta raíz (ping del servidor)
