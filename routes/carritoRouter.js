@@ -6,6 +6,5 @@ const carritoController = require("../controllers/carritoController");
 router.post("/agregar", carritoController.agregarAlCarrito);
 router.get("/:userId", carritoController.obtenerCarrito);
 router.post("/limpiar", carritoController.limpiarCarrito);
-router.post("/eliminar-producto", carritoController.eliminarProducto);
 
 module.exports = router;
