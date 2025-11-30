@@ -1,6 +1,5 @@
 const Producto = require("../models/Producto");
 
-// Crear producto
 exports.crearProducto = async (req, res) => {
   try {
     const producto = new Producto(req.body);
@@ -11,7 +10,6 @@ exports.crearProducto = async (req, res) => {
   }
 };
 
-// Listar productos
 exports.listarProductos = async (req, res) => {
   try {
     const productos = await Producto.find();
